@@ -28,6 +28,30 @@ def lookup(file_name, value, col_find, col_give, sheet_id=0, minrow=0, maxrow=-1
     ret_values = [cg[v] for v in found_rows]
     return ret_values
 
+def lookup_row(file_name, value, col_find, sheet_id=0):
+    df = pd.read_excel(file_name, sheet_id)
+    return df[df[col_find]==value]
+
+def search_string_in_excel(file_path, target_string):
+
+    # Create an Excel file reader
+    xls = pd.ExcelFile(file_path)
+
+    # Initialize a DataFrame to store the results
+    results = []
+
+    # Iterate through each sheet in the Excel file
+    for sheet_name in xls.sheet_names:
+        # Read the sheet into a DataFrame
+        df = xls.parse(sheet_name)
+        # Search for the target string in the DataFrame
+        filtered_df = df[df.apply(lambda row: row.astype(str).str.contains(target_string, case=False).any(), axis=1)]
+        # If any rows contain the target string, add them to the results along with the sheet name
+        if not filtered_df.empty:
+            results.append((sheet_name, filtered_df))
+    return results
+
+
 
 def column_list(file_name, sheet_id=0):
     return pd.read_excel(file_name, sheet_id).columns
@@ -70,9 +94,13 @@ def lookup_test():
 
 
 if __name__ == '__main__':
-    export_all_csv(PBT, "biswabir")
+    #export_all_csv(PBT, "biswabir")
+    #row_test = lookup_row(PBT, 331, "Report 1 ID", "Commonality")
+    #print(row_test)
+    #print(row_test["First Report Name"])
+    #print(search_string_in_excel(PBT, "Calendar_year_lookup")[1])
     #export_all_csv("personal bulk task.xlsx", prefix="testhello")
-    #lookup_test()
+    lookup_test()
     #all_col_test()
 
     #for sheet in (openpyxl.load_workbook("personal bulk task.xlsx").sheetnames):
@@ -83,3 +111,5 @@ if __name__ == '__main__':
     #    else:
     #        print("  no relevant columns")
 
+#dataframe.drop_duplicates(): filter out rows which are identical
+#dataframe.drop_duplicates(col_name): filter out rows which have duplicate entries in col_name
