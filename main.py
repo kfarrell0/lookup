@@ -1,5 +1,7 @@
 import pandas as pd
 import openpyxl
+import mysql
+import mysql.connector
 
 PBT = "personal bulk task.xlsx"
 
@@ -28,10 +30,21 @@ def lookup(file_name, value, col_find, col_give, sheet_id=0, minrow=0, maxrow=-1
     ret_values = [cg[v] for v in found_rows]
     return ret_values
 
+
+#returns the entire row containing value in col_find, as a dataframe
 def lookup_row(file_name, value, col_find, sheet_id=0):
     df = pd.read_excel(file_name, sheet_id)
     return df[df[col_find]==value]
 
+#returns the entire row containing value_range in col_find, assuming value_range is a list of some kind
+def lookup_row_range(file_name, value_range, col_find, sheet_id=0):
+    df = pd.read_excel(file_name, sheet_id)
+    return df[df[col_find].isin(value_range)]
+
+
+#search each sheet in the excel document given by *file_path* for cells containing *target_string*.
+#the return value is a list of tuples for each sheet where it was found; the tuple contains the name of the sheet
+#and a pandas dataframe of all the rows where *target_string* was found.
 def search_string_in_excel(file_path, target_string):
 
     # Create an Excel file reader
@@ -52,7 +65,6 @@ def search_string_in_excel(file_path, target_string):
     return results
 
 
-
 def column_list(file_name, sheet_id=0):
     return pd.read_excel(file_name, sheet_id).columns
 
@@ -64,17 +76,20 @@ def all_column_lists(file_name):
         ret_list += [column_list(file_name, i)]
     return ret_list
 
-
 def all_col_test():
     a = all_column_lists("personal bulk task.xlsx")
     for b in a:
         print(b)
 
 
-def export_csv(src_file, sheet_id, prefix=""):
+#take an excel spreadsheet with filename *src_file*, sheet name (or 0-indexed number) *sheet_id* and turn it into a csv file.
+#the output filename will be the *prefix* plus the sheet_id
+def export_csv(src_file, sheet_id=0, prefix=""):
     pd.read_excel(src_file, sheet_id).to_csv(prefix + str(sheet_id) + ".csv", index=False)
 
 
+#this simply turns each sheet in an excel file into a separate csv file
+#the file names are prefix plus the name of the sheet
 def export_all_csv(src_file, prefix=""):
     wb = openpyxl.load_workbook(src_file)
     for x in wb.sheetnames:
@@ -92,15 +107,74 @@ def lookup_test():
     print(lookup("personal bulk task.xlsx", 41, "Analyzer Task ID", "Folder Path", "Task Details", maxrow = 4))
 
 
+def execute_query():
+
+    mydb = mysql.connector.connect(
+      host="localhost",
+      user="root"
+    )
+
+    mycursor = mydb.cursor()
+
+    fileread = open("article_lookup.sql", "r")
+    sql = fileread.read()
+    mycursor.execute(sql)
+    result = mycursor.execute("SELECT * FROM efashionmysql.article_lookup LIMIT 0, 50")
+    print(result)
+    #mydb.commit()
+
+
+def select_all(table_name):
+    mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="ltitest000"
+    )
+    curs = mydb.cursor()
+    query_all = "SELECT * FROM " + table_name + ";"
+    curs.execute("USE test")
+    curs.execute(query_all)
+    ret = curs.fetchall()
+    mydb.close()
+    curs.close()
+    return ret
 
 if __name__ == '__main__':
+
+    print(select_all("article_lookup")[0:4])
+
+
+
+    #execute_query()
+
+    #print(mysql)
+    #curs.execute("CREATE DATABASE test")
+    #curs.execute("USE test")
+    #curs.execute("CREATE TABLE things (Name varchar(63), Number int);")
+    #curs.execute("INSERT INTO things VALUES ('kevin', 1000);")
+    #curs.execute("INSERT INTO things VALUES ('kanishak', 1002);")
+    #curs.execute("INSERT INTO things VALUES ('missy elliot', 5);")
+    #curs.execute("INSERT INTO things VALUES ('dogton blanchard', 50);")
+    #mydb.commit()
+    #curs.execute("SELECT * FROM things WHERE Number>100;")
+    #print(curs.fetchall())
+
+
+
+
+
+
+
     #export_all_csv(PBT, "biswabir")
     #row_test = lookup_row(PBT, 331, "Report 1 ID", "Commonality")
+    #print(lookup_row_range(PBT, range(330, 338), "Report 1 ID", "Commonality"))
+
     #print(row_test)
     #print(row_test["First Report Name"])
     #print(search_string_in_excel(PBT, "Calendar_year_lookup")[1])
     #export_all_csv("personal bulk task.xlsx", prefix="testhello")
-    lookup_test()
+
+    #lookup_test()
     #all_col_test()
 
     #for sheet in (openpyxl.load_workbook("personal bulk task.xlsx").sheetnames):
