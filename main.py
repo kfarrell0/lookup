@@ -139,9 +139,25 @@ def select_all(table_name):
     curs.close()
     return ret
 
+def execute_query_from_file(filename):
+    mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="ltitest000"
+    )
+    curs = mydb.cursor()
+    query_text = open(filename, "r").read()
+    curs.execute("USE test")
+    curs.execute(query_text)
+    ret = curs.fetchall()
+    mydb.close()
+    curs.close()
+    return ret
+
 if __name__ == '__main__':
 
     print(select_all("article_lookup")[0:4])
+    print(execute_query_from_file("select.txt"))
 
 
 
