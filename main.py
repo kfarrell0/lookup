@@ -106,24 +106,6 @@ def lookup_test():
     print(lookup("personal bulk task.xlsx", 643376, "Report ID", "Report Path", 3))
     print(lookup("personal bulk task.xlsx", 41, "Analyzer Task ID", "Folder Path", "Task Details", maxrow = 4))
 
-
-def execute_query():
-
-    mydb = mysql.connector.connect(
-      host="localhost",
-      user="root"
-    )
-
-    mycursor = mydb.cursor()
-
-    fileread = open("article_lookup.sql", "r")
-    sql = fileread.read()
-    mycursor.execute(sql)
-    result = mycursor.execute("SELECT * FROM efashionmysql.article_lookup LIMIT 0, 50")
-    print(result)
-    #mydb.commit()
-
-
 def select_all(table_name):
     mydb = mysql.connector.connect(
         host="localhost",
