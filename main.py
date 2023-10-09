@@ -2,6 +2,10 @@ import pandas as pd
 import openpyxl
 import mysql
 import mysql.connector
+import json
+import csv
+import xml.etree.ElementTree as ET
+
 
 PBT = "personal bulk task.xlsx"
 
@@ -106,6 +110,7 @@ def lookup_test():
     print(lookup("personal bulk task.xlsx", 643376, "Report ID", "Report Path", 3))
     print(lookup("personal bulk task.xlsx", 41, "Analyzer Task ID", "Folder Path", "Task Details", maxrow = 4))
 
+
 def select_all(table_name):
     mydb = mysql.connector.connect(
         host="localhost",
@@ -136,10 +141,80 @@ def execute_query_from_file(filename):
     curs.close()
     return ret
 
+#given a json file for the database details/credentials, a json file which lists relevant queries, and an identifier
+#for one of the queries in the file, execute that query.
+def run_query(db_file, query_file, query_id):
+    db_data = json.load(open(db_file, "r"))
+    mydb = mysql.connector.connect(
+        host = db_data.get("host"),
+        user = db_data.get("user"),
+        password = db_data.get("password")
+    )
+    curs = mydb.cursor()
+    query_json = open(query_file, "r")
+    data = json.load(query_json)
+    query = data.get(query_id)
+    curs.execute("USE " + db_data.get("db"))
+    curs.execute(query)
+    results = curs.fetchall()
+
+    output_csv = f"output_{query_id}.csv"
+
+    with open(output_csv, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerows(results)
+        return f"Query results have been written to {output_csv}."
+
+    curs.close()
+    mydb.close()
+
+
+
+def make_json_test():
+    q_dict = {
+        "Query1": "SELECT * FROM article_lookup WHERE Article_id=144940",
+        "Query2": "SELECT * FROM article_lookup WHERE Article_id>144940",
+        "Query3": "SELECT * FROM article_lookup WHERE Article_id<144940"
+    }
+    json_txt = json.dumps(q_dict)
+    open("queries.json", "w").write(json_txt)
+
+
+
+def parse_xml_file():
+    # Load the XML file
+    tree = ET.parse('sample.xml')
+    root = tree.getroot()
+
+    # Extract information based on the name of alias
+
+    alias_name = 'eFashion'  # Replace this with the desired alias name
+    for alias_element in root.findall(f"./alias[@name='{alias_name}']"):
+
+        path = alias_element.find('path').text
+        connection = alias_element.find('connection').text
+        user = alias_element.find('user').text
+        password = alias_element.find('pwd').text
+
+        print(f"Alias: {alias_name}")
+        print(f"Path: {path}")
+        print(f"Connection: {connection}")
+        print(f"User: {user}")
+        print(f"Password: {password}")
+
+
+
+
 if __name__ == '__main__':
 
-    print(select_all("article_lookup")[0:4])
-    print(execute_query_from_file("select.txt"))
+
+    #make_json_test()
+    #print(run_query("test_creds.json", "queries.json", "Query1"))
+    #print(run_query("test_creds.json", "queries.json", "Query3"))
+    parse_xml_file()
+
+    #print(select_all("article_lookup")[0:4])
+    #print(execute_query_from_file("select.txt"))
 
 
 

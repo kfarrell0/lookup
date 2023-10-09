@@ -1,0 +1,1 @@
+SELECT * FROM article_lookup WHERE Article_id=144940

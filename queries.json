@@ -1,0 +1,1 @@
+{"Query1": "SELECT * FROM article_lookup WHERE Article_id=144940", "Query2": "SELECT * FROM article_lookup WHERE Article_id>144940", "Query3": "SELECT * FROM article_lookup WHERE Article_id<144940"}
