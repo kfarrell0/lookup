@@ -5,6 +5,7 @@ import mysql.connector
 import json
 import csv
 import xml.etree.ElementTree as ET
+import re
 
 
 PBT = "personal bulk task.xlsx"
@@ -37,7 +38,8 @@ def lookup(file_name, value, col_find, col_give, sheet_id=0, minrow=0, maxrow=-1
 
 #returns the entire row containing value in col_find, as a dataframe
 def lookup_row(file_name, value, col_find, sheet_id=0):
-    df = pd.read_excel(file_name, sheet_id)
+
+    df = pd.read_excel(file_name, sheet_id).astype(str)
     return df[df[col_find]==value]
 
 #returns the entire row containing value_range in col_find, assuming value_range is a list of some kind
@@ -106,7 +108,7 @@ def export_all_csv(src_file, prefix=""):
 
 def lookup_test():
     print(lookup("personal bulk task.xlsx", 331, "Report 1 ID", "Second Report Name", "Commonality"))
-    print([lookup("personal bulk task.xlsx", x, 1, 4, 1, colnumber = True) for x in range(331,341)])
+    print([lookup("personal bulk task.xlsx", x, 1, 4, 1, colnumber=True) for x in range(331,341)])
     print(lookup("personal bulk task.xlsx", 643376, "Report ID", "Report Path", 3))
     print(lookup("personal bulk task.xlsx", 41, "Analyzer Task ID", "Folder Path", "Task Details", maxrow = 4))
 
@@ -181,26 +183,64 @@ def make_json_test():
 
 
 
-def parse_xml_file():
+def execute_from_xml(dataset_name, db_xml, lookup=None, lookrow=None, query=None):
     # Load the XML file
-    tree = ET.parse('sample.xml')
+    tree = ET.parse(db_xml)
     root = tree.getroot()
 
     # Extract information based on the name of alias
 
-    alias_name = 'eFashion'  # Replace this with the desired alias name
-    for alias_element in root.findall(f"./alias[@name='{alias_name}']"):
+    dataset = root.findall(f"./alias[@name='{dataset_name}']")[0]
+    if(dataset.get("type") == "Excel"):
+        path = dataset.find("path").text
+        sheet = dataset.find("sheet").text
+        #print(path)
+        #print(sheet)
+        if(lookup):
+            return lookup_row(path, lookup, lookrow, sheet)
+        else:
+            return pd.read_excel(path, sheet)
 
-        path = alias_element.find('path').text
-        connection = alias_element.find('connection').text
-        user = alias_element.find('user').text
-        password = alias_element.find('pwd').text
+    if(dataset.get("type") == "MySQL"):
+        hst = dataset.find('host').text
+        usr = dataset.find('user').text
+        pwd = dataset.find('pwd').text
+        database = dataset.find('database').text
+        table = dataset.find('table').text
+        mydb = mysql.connector.connect(host=hst, user=usr, password=pwd)
+        curs = mydb.cursor()
+        curs.execute("USE " + database)
+        if(query):
+            curs.execute(query)
+            ret = curs.fetchall()
+            curs.close()
+            mydb.close()
+            return ret
+        elif(lookup):
+            curs.execute(f"SELECT * FROM {table} WHERE {lookrow} = '{lookup}'")
+            ret = curs.fetchall()
+            curs.close()
+            mydb.close()
+            return ret
+        else:
+            curs.execute(f"SELECT * FROM {table}")
+            ret = curs.fetchall()
+            curs.close()
+            mydb.close()
+            return ret
+    return None
 
-        print(f"Alias: {alias_name}")
-        print(f"Path: {path}")
-        print(f"Connection: {connection}")
-        print(f"User: {user}")
-        print(f"Password: {password}")
+
+def lookup_string_format(phrase, query=False):
+    start = phrase.find("@Lookup{")
+    end = phrase.find("}", start)
+    arguments = phrase[start + len("@Lookup{") : end].split(",")
+    arguments = [arg.strip() for arg in arguments]
+    if(query):
+        return execute_from_xml(arguments[0], "dbs.xml", query=arguments[1]) #not sure how to format
+    lookup_insert = execute_from_xml(arguments[0], "dbs.xml", arguments[1], arguments[2])[arguments[3]].values[0]
+
+    return phrase[0:start] + lookup_insert + phrase[end+1:]
 
 
 
@@ -208,10 +248,30 @@ def parse_xml_file():
 if __name__ == '__main__':
 
 
-    #make_json_test()
-    #print(run_query("test_creds.json", "queries.json", "Query1"))
+    thing = '<H1>Here we talking about @Lookup_Excel{"alias":"ABC", "tab":"sheet1", "column":"report_name", "row": "RcastTestReport"} Report </H1>'
+
+    match = re.findall(r"@Lookup_Excel\{(.*?)\}", thing)
+    with (open("lookupcall.json","w") as x):
+        x.write("{" + match[0] + "}")
+
+    x = open("lookupcall.json", "r")
+    args_dict = json.load(x)
+    print(args_dict)
+    print(args_dict["alias"])
+
+
+    #print(match[0].split(","))
+
+
+    #print(lookup_string_format("The report name for report id 273 is @Lookup{Commonality, 273, ID, First Report Name}..."))
+
+    #print(lookup_row(PBT, "273", "ID", "Commonality"))
+
+    #print(execute_from_xml("Task Details", "dbs.xml"))
+    #print(execute_from_xml("eFashion2", "dbs.xml"))
+
     #print(run_query("test_creds.json", "queries.json", "Query3"))
-    parse_xml_file()
+
 
     #print(select_all("article_lookup")[0:4])
     #print(execute_query_from_file("select.txt"))
